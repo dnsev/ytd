@@ -6,11 +6,13 @@
 // @version     1.0
 // @grant       none
 // @require     https://raw.github.com/dnsev/ytd/master/jquery.js
+// @updateURL   https://raw.github.com/dnsev/ytd/master/ytd.user.js
+// @downloadURL https://raw.github.com/dnsev/ytd/master/ytd.user.js
 // ==/UserScript==
 
 
 
-(function () C{
+(function () {
 	"use strict";
 
 
