@@ -3,7 +3,7 @@
 // @description Recover (partial) names of YouTube videos which have been deleted
 // @namespace   dnsev
 // @include     *://*youtube.com/*
-// @version     1.0
+// @version     1.1
 // @grant       none
 // @require     https://raw.github.com/dnsev/ytd/master/jquery.js
 // @updateURL   https://raw.github.com/dnsev/ytd/master/ytd.user.js
@@ -84,6 +84,13 @@
 							.attr("href", "/results?search_query=" + encodeURIComponent(search_term) + "&sm=3")
 							.text(m[1])
 						)
+						.append(E("span"))
+						.append(
+							E("a")
+							.attr("target", "_blank")
+							.attr("href", "https://www.google.com/#q=" + encodeURIComponent("YouTube " + this.queue[0].video_id) + "&safe=off")
+							.text("google")
+						)
 					);
 				}
 				else {
@@ -156,6 +163,7 @@
 				'.cyt-unavailable-video-name>a:hover{text-decoration:underline;}' +
 				'.cyt-unavailable-video-name.cyt-error{color:#999999;}' +
 				'.cyt-unavailable-video-name.cyt-error>a{color:#777777;text-decoration:none;}' +
+				'.cyt-unavailable-video-name>span:before{content:"/";}' +
 				''
 			)
 		);
