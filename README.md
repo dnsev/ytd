@@ -9,5 +9,5 @@ Designed for Firefox, but it doesn't really have anything that isn't cross brows
 
 <br />
 
-Example of what it looks like when it works:
+Example of what it looks like when it works:<br />
 ![example](https://raw.github.com/dnsev/ytd/master/example.png)
