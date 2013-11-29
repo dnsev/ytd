@@ -3,7 +3,7 @@
 // @description Recover (partial) names of YouTube videos which have been deleted
 // @namespace   dnsev
 // @include     *://*youtube.com/*
-// @version     1.1
+// @version     1.2
 // @grant       none
 // @require     https://raw.github.com/dnsev/ytd/master/jquery.js
 // @updateURL   https://raw.github.com/dnsev/ytd/master/ytd.user.js
@@ -63,7 +63,7 @@
 
 		var run_error = function (jqXHR, textStatus, errorThrown) {
 			// Error
-			run_place_error.call(this, true);
+			run_place_error.call(this, true, textStatus);
 
 			// Next
 			run_complete.call(this);
@@ -76,21 +76,11 @@
 				if (m) {
 					var search_term = m[1].replace(/\.\.\.$/, "").trim();
 					// Show text
-					this.queue[0].element.parent().after(
-						E("span", "cyt-unavailable-video-name")
-						.append(
-							E("a")
-							.attr("target", "_blank")
-							.attr("href", "/results?search_query=" + encodeURIComponent(search_term) + "&sm=3")
-							.text(m[1])
-						)
-						.append(E("span"))
-						.append(
-							E("a")
-							.attr("target", "_blank")
-							.attr("href", "https://www.google.com/#q=" + encodeURIComponent("YouTube " + this.queue[0].video_id) + "&safe=off")
-							.text("google")
-						)
+					run_place_links.call(this,
+						E("a")
+						.attr("target", "_blank")
+						.attr("href", "/results?search_query=" + encodeURIComponent(search_term))
+						.text(m[1])
 					);
 				}
 				else {
@@ -102,13 +92,24 @@
 			// Next
 			run_complete.call(this);
 		};
-		var run_place_error = function (ajax_error) {
+		var run_place_error = function (ajax_error, ajax_error_message) {
 			// Add an error
-			this.queue[0].element.parent().after(
-				E("span", "cyt-unavailable-video-name cyt-error")
+			run_place_links.call(this,
+				E("a")
+				.text(ajax_error ? "Ajax error" + (ajax_error_message ? ": " + ajax_error_message : "") : "No results")
+			);
+		};
+		var run_place_links = function (element) {
+			// Add links
+			this.queue[0].element.parent().parent().after(
+				E("div", "cyt-unavailable-video-name cyt-error")
+				.append(element)
+				.append(E("span"))
 				.append(
 					E("a")
-					.text("No results")
+					.attr("target", "_blank")
+					.attr("href", "https://www.google.com/#q=" + encodeURIComponent("YouTube \"" + this.queue[0].video_id + "\"") + "&safe=off")
+					.text("google")
 				)
 			);
 		};
@@ -156,14 +157,11 @@
 		$("head").append(
 			E("style")
 			.html(
-				'.cyt-unavailable-video-name{color:#2793e6;font-weight:bold;}' +
-				'.cyt-unavailable-video-name:before{content:"{";margin-left:12px;}' +
-				'.cyt-unavailable-video-name:after{content:"}";}' +
-				'.cyt-unavailable-video-name>a{color:#e69327;margin:0px 4px;}' +
+				'.cyt-unavailable-video-name{color:#2793e6;font-weight:bold;display:block;margin-top:4px;}' +
+				'.cyt-unavailable-video-name>a{color:#e69327;text-decoration:none;}' +
 				'.cyt-unavailable-video-name>a:hover{text-decoration:underline;}' +
-				'.cyt-unavailable-video-name.cyt-error{color:#999999;}' +
-				'.cyt-unavailable-video-name.cyt-error>a{color:#777777;text-decoration:none;}' +
-				'.cyt-unavailable-video-name>span:before{content:"/";}' +
+				'.cyt-unavailable-video-name.cyt-error>a:not([href]){color:#777777;text-decoration:none;cursor:default;}' +
+				'.cyt-unavailable-video-name>span:before{content:"/";margin:0px 4px;}' +
 				''
 			)
 		);

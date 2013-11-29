@@ -6,3 +6,8 @@ A simple plugin to recover (partial) video names in YouTube playlists, which is 
 Designed for Firefox, but it doesn't really have anything that isn't cross browser
 
 [Download](https://raw.github.com/dnsev/ytd/master/ytd.user.js) - requires GreaseMonkey or similar extension
+
+<br />
+
+Example of what it looks like when it works:
+![example](https://raw.github.com/dnsev/ytd/master/example.png)
