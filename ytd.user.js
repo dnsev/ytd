@@ -3,9 +3,9 @@
 // @description Recover (partial) names of YouTube videos which have been deleted
 // @namespace   dnsev
 // @include     *://*youtube.com/*
-// @version     1.2
+// @version     1.3
 // @grant       none
-// @require     https://raw.github.com/dnsev/ytd/master/jquery.js
+// @icon        data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAB+UlEQVR42u3XvWtTURgG8Hdqb3LzeWv9ABFUjCj+CU79BwQplA4uUjpYQQcdOhYcjSJasVpKC0UDhYigpKCxlNTWkA52SJWADYHbijdDMiTChcLjc+ES6mcPTehZOvyeA+fA877rEQBaHSwgBcvUSv8CeYbvOmVp1VchdEhlR2+aLpJ45COD0oR9liKRZcvsJ2jSL7m4mSJokpLFeDBP0CQv7+NBm6Bq8fhh7+wUW97Gg9sEFdljPfixtYnGxlcUb4wgeyTm3bdjW+ZjQajKXkjAdd2WxrctrI/exrsTR733PZE3DGXnE2g0Gr9oNpuob9pYu3UTmd6YepdPXjGUnTuDWq32V/V6Hd8/r2PlyqB6H0maoYwLOI7zX9VqFV+ez+JlT1ipU+aiASg7exq2be8qNz2FOSuk1CkphjIuUC6X/+nT8gckL1/CqNmFF4qdMstQljiFUqn0h7VCAeNDVzESNZEMG+p9JDMMZYmTKBaLLYWlJTzi4Gu9Fu6EujGt3tUiU5GAS1AxcSiGlYUF5OYzuDs4gOGIiTGzG0+9971x5VkkUCGomKBhK4qhQBfGQgYH8749G/IkEsgRVI17Z+fk5HHEmCRoMikPw0YfQZM+eRA2PEnCPkuSyH2Gb4Be0+oODqFNzm+dGX+WeOQeQx/9Cxz8DfUv8BPC7tqgW88FVAAAAABJRU5ErkJggg==
 // @updateURL   https://raw.github.com/dnsev/ytd/master/ytd.user.js
 // @downloadURL https://raw.github.com/dnsev/ytd/master/ytd.user.js
 // ==/UserScript==
@@ -27,8 +27,69 @@
 			}
 			el.className = tag;
 		}
-		return $(el);
+		return el;
 	};
+
+
+
+	var Ready = (function () {
+
+		// Event callbacks
+		var on_document_readystatechange_interval = null;
+		var on_ready = null;
+		var on_document_readystatechange = function () {
+			// State check
+			if (document.readyState == "interactive" || document.readyState == "complete") {
+				// Clear
+				clear_load_events();
+				var on_ready2 = on_ready;
+				on_ready = null;
+				// Call ready
+				if (on_ready2 instanceof Function) on_ready2.call(null);
+				return true;
+			}
+			return false;
+		};
+		var on_document_load = function () {
+			// Clear
+			clear_load_events();
+			var on_ready2 = on_ready;
+			on_ready = null;
+			// Call ready
+			if (on_ready2 instanceof Function) on_ready2.call(null);
+		};
+
+		// Setup events
+		var setup_load_events = function (callback) {
+			// Setup events
+			on_ready = callback;
+			if (on_document_readystatechange_interval === null) {
+				if (on_document_readystatechange() === false) {
+					document.addEventListener("readystatechange", on_document_readystatechange, false);
+					document.addEventListener("load", on_document_load, false);
+					on_document_readystatechange_interval = setInterval(on_document_readystatechange, 20);
+				}
+			}
+		};
+
+		// Clear events
+		var clear_load_events = function () {
+			if (on_document_readystatechange_interval !== null) {
+				// Remove timer
+				clearInterval(on_document_readystatechange_interval);
+				on_document_readystatechange_interval = null;
+
+				// Remove events
+				document.removeEventListener("readystatechange", on_document_readystatechange, false);
+				document.removeEventListener("load", on_document_load, false);
+				clearInterval(on_document_readystatechange_interval);
+			}
+		};
+
+		// Return function
+		return setup_load_events;
+
+	})();
 
 
 
@@ -45,43 +106,49 @@
 			// Run?
 			if (this.running || this.queue.length == 0) return;
 			this.running = true;
-			var self = this;
 
-			// Start
-			$.ajax({
-				type: "GET",
-				url: "/watch?v=" + this.queue[0].video_id,
-				dataType: "html",
-				error: function (jqXHR, textStatus, errorThrown) {
-					run_error.call(self, jqXHR, textStatus, errorThrown);
-				},
-				success: function (data, textStatus, jqXHR) {
-					run_success.call(self, data, textStatus, jqXHR);
-				}
-			});
+			// Create url
+			var url = "/watch?v=" + this.queue[0].video_id;
+
+			// Create request
+			var xhr = new XMLHttpRequest();
+			xhr.open("GET", url, true);
+			xhr.responseType = "document";
+
+			// Error
+			xhr.addEventListener("error", run_error.bind(this, xhr, "error"), false);
+			// Abort
+			xhr.addEventListener("abort", run_error.bind(this, xhr, "abort"), false);
+			// Complete
+			xhr.addEventListener("load", run_success.bind(this, xhr, "load"), false);
+
+			// Start request
+			xhr.send();
 		};
 
-		var run_error = function (jqXHR, textStatus, errorThrown) {
+		var run_error = function (xhr, reason) {
 			// Error
-			run_place_error.call(this, true, textStatus);
+			run_place_error.call(this, true, reason);
 
 			// Next
 			run_complete.call(this);
 		};
-		var run_success = function (data, textStatus, jqXHR) {
+		var run_success = function (xhr, reason) {
+			// Get data
+			var data = xhr.response;
+
 			// Find video name
-			var errorMessage = $(data).find("#unavailable-message");
-			if (errorMessage.length > 0) {
-				var m = /"(.+?)"/.exec(errorMessage.text());
+			var errorMessage = data.querySelector("#unavailable-message");
+			if (errorMessage) {
+				var m = /"(.+?)"/.exec(errorMessage.textContent || "");
 				if (m) {
-					var search_term = m[1].replace(/\.\.\.$/, "").trim();
 					// Show text
-					run_place_links.call(this,
-						E("a")
-						.attr("target", "_blank")
-						.attr("href", "/results?search_query=" + encodeURIComponent(search_term))
-						.text(m[1])
-					);
+					var search_term = m[1].replace(/\.\.\.$/, "").trim();
+					var link = E("a");
+					link.setAttribute("target", "_blank");
+					link.setAttribute("href", "/results?search_query=" + encodeURIComponent(search_term));
+					link.textContent = m[1];
+					run_place_links.call(this, link);
 				}
 				else {
 					// Error
@@ -94,24 +161,38 @@
 		};
 		var run_place_error = function (ajax_error, ajax_error_message) {
 			// Add an error
-			run_place_links.call(this,
-				E("a")
-				.text(ajax_error ? "Ajax error" + (ajax_error_message ? ": " + ajax_error_message : "") : "No results")
-			);
+			var link = E("a");
+			link.textContent = (ajax_error ? "Ajax error" + (ajax_error_message ? ": " + ajax_error_message : "") : "No results");
+			run_place_links.call(this, link);
 		};
 		var run_place_links = function (element) {
 			// Add links
-			this.queue[0].element.parent().parent().after(
-				E("div", "cyt-unavailable-video-name cyt-error")
-				.append(element)
-				.append(E("span"))
-				.append(
-					E("a")
-					.attr("target", "_blank")
-					.attr("href", "https://www.google.com/#q=" + encodeURIComponent("YouTube \"" + this.queue[0].video_id + "\"") + "&safe=off")
-					.text("google")
-				)
-			);
+			var div = E("div", "cyt-unavailable-video-name cyt-error");
+
+			// Element
+			div.appendChild(element);
+
+			// Separator
+			div.appendChild(E("span"));
+
+			// Link
+			var link = E("a");
+			link.setAttribute("target", "_blank");
+			link.setAttribute("href", "https://www.google.com/#q=" + encodeURIComponent("YouTube \"" + this.queue[0].video_id + "\"") + "&safe=off");
+			link.textContent = "google";
+			div.appendChild(link);
+
+			// Add to document
+			var par = this.queue[0].element.parentNode;
+			if (par != null) {
+				var s = this.queue[0].element.nextSibling;
+				if (s == null) {
+					par.appendChild(div);
+				}
+				else {
+					par.insertBefore(div, s);
+				}
+			}
 		};
 		var run_complete = function () {
 			// Run next queue item
@@ -125,6 +206,7 @@
 			}, this.timeout * 1000);
 		};
 
+
 		Fixer.prototype = {
 			constructor: Fixer,
 
@@ -134,7 +216,7 @@
 					video_id: null,
 				};
 
-				var m = /\?(?:.+?\&)?v=([^\&]+)/.exec(element.parent().attr("href"));
+				var m = /\?(?:.+?\&)?v=([^\&]+)/.exec(element.getAttribute("href"));
 				if (m) queue_item.video_id = m[1];
 
 				this.queue.push(queue_item);
@@ -154,39 +236,42 @@
 
 	var main = function () {
 		// Insert stylesheet
-		$("head").append(
-			E("style")
-			.html(
-				'.cyt-unavailable-video-name{color:#2793e6;font-weight:bold;display:block;margin-top:4px;}' +
-				'.cyt-unavailable-video-name>a{color:#e69327;text-decoration:none;}' +
-				'.cyt-unavailable-video-name>a:hover{text-decoration:underline;}' +
-				'.cyt-unavailable-video-name.cyt-error>a:not([href]){color:#777777;text-decoration:none;cursor:default;}' +
-				'.cyt-unavailable-video-name>span:before{content:"/";margin:0px 4px;}' +
-				''
-			)
-		);
+		var head = document.querySelector("head");
+		if (head) {
+			var style = E("style");
+			style.innerHTML =
+				'.cyt-unavailable-video-name{color:#2793e6;font-weight:bold;display:block;margin-top:4px;}\
+				.cyt-unavailable-video-name>a{color:#e69327;text-decoration:none;}\
+				.cyt-unavailable-video-name>a:hover{text-decoration:underline;}\
+				.cyt-unavailable-video-name.cyt-error>a:not([href]){color:#777777;text-decoration:none;cursor:default;}\
+				.cyt-unavailable-video-name>span:before{content:"/";margin:0px 4px;}\
+				';
+			head.appendChild(style);
+		}
 
 		// Find titles
-		var titles = $(".title.video-title");
+		var titles = document.querySelectorAll(".pl-video-title-link");
 		var deleteds = [];
 		for (var i = 0; i < titles.length; ++i) {
-			var title = $(titles[i]);
-			if (title.text().trim().toLowerCase() == "[deleted video]") {
-				deleteds.push(title);
+			if ((titles[i].textContent || "").trim().toLowerCase() == "[deleted video]") {
+				deleteds.push(titles[i]);
 			}
 		}
 
 		// Fix deleteds
-		var fixer = new Fixer();
-		for (var i = 0; i < deleteds.length; ++i) {
-			fixer.add(deleteds[i]);
+		if (deleteds.length > 0) {
+			var fixer = new Fixer();
+			for (var i = 0; i < deleteds.length; ++i) {
+				fixer.add(deleteds[i]);
+			}
 		}
 	};
 
 
 
 	// Init
-	$(document).ready(function () {
+	Ready(function () {
+		// Check url
 		if (/^https?:\/\/(?:.+?\.)?youtube\.com\/playlist\?(?:(?:.+?\&)?list=([^\&]+))/i.test(document.location.href)) {
 			main();
 		}
